@@ -9,6 +9,13 @@ import os
 import shutil
 import asyncio
 from paddleocr import PaddleOCR
+from pydantic import BaseModel
+import urllib3
+
+
+class UrlRequest(BaseModel):
+    url: str
+
 
 app = FastAPI()
 app.add_middleware(
@@ -20,9 +27,9 @@ app.add_middleware(
 )
 
 
-
 # Initialize PaddleOCR once when the application starts
 ocr_model = PaddleOCR(lang='en')
+
 
 async def process_image(image_path, results):
     try:
@@ -37,9 +44,9 @@ async def process_image(image_path, results):
             ocr_text = result[0][0][1]
         else:
             ocr_text = ["No text found", "No confidence rates"]
-        
+
         results.append(ocr_text)
-        
+
         if os.path.exists(image_path):
             os.remove(image_path)
             print(f"File '{image_path}' has been deleted.")
@@ -48,6 +55,35 @@ async def process_image(image_path, results):
     except Exception as e:
         print(f"Error processing image: {str(e)}")
 
+
+async def url_process_image(payload):
+    try:
+        results = []
+        image_path = payload.url
+        resp = urllib3.request('GET',
+                               image_path)
+        arr = np.asanyarray(bytearray(resp.data), dtype=np.uint8)
+        img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        bfilter = cv2.bilateralFilter(gray_img, 11, 17, 17)
+        blurred_image = cv2.GaussianBlur(bfilter, (5, 5), 0)
+        _, thresholded_image = cv2.threshold(
+            blurred_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        result = ocr_model.ocr(
+            thresholded_image, cls=False, det=True, rec=True)
+        key_dict = ('result', 'confident')
+        for res in result:
+            for a in res:
+                print(a[1])
+                if len(key_dict) == len(a[1]):
+                    resut_dict = {key_dict[i]: a[1][i]
+                                  for i, _ in enumerate(a[1])}
+                    print(resut_dict)
+                    results.append(resut_dict)
+
+        return results
+    except Exception as e:
+        print(f"Error processing image: {str(e)}")
 
 
 @app.get("/")
@@ -80,7 +116,7 @@ async def upload_file(files: List[UploadFile], response: Response):
                     shutil.copyfileobj(file.file, image_file)
                 response.status_code = status.HTTP_201_CREATED
                 message = "Image uploaded and saved successfully"
-        
+
         # Initialize an empty list to collect OCR results
         ocr_results = []
 
@@ -88,10 +124,31 @@ async def upload_file(files: List[UploadFile], response: Response):
         tasks = [process_image(p, ocr_results) for p in path]
         await asyncio.gather(*tasks)
 
-        content = {"code": response.status_code, "message": message, "file_path": path, "result": ocr_results}
+        content = {"code": response.status_code, "message": message,
+                   "file_path": path, "result": ocr_results}
         return content
 
     except Exception as e:
         return {"error": str(e)}
 
 
+@app.post("/urls", status_code=200)
+async def process_url(url_request: UrlRequest, response: Response):
+    try:
+        # Await the asynchronous function
+        ocr_results = await url_process_image(url_request)
+        content = {
+            "code": response.status_code,
+            "message": "success",
+            "result": ocr_results
+        }
+        return content
+    except Exception as e:
+        error_message = f"Error processing image: {str(e)}"
+        print(error_message)
+        return {"error": error_message}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
