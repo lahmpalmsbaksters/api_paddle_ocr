@@ -72,14 +72,17 @@ async def url_process_image(payload):
         result = ocr_model.ocr(
             thresholded_image, cls=False, det=True, rec=True)
         key_dict = ('result', 'confident')
-        for res in result:
-            for a in res:
-                print(a[1])
-                if len(key_dict) == len(a[1]):
-                    resut_dict = {key_dict[i]: a[1][i]
-                                  for i, _ in enumerate(a[1])}
-                    print(resut_dict)
-                    results.append(resut_dict)
+        if result is not None:
+            for res in result:
+                for a in res:
+                    print(a[1])
+                    if len(key_dict) == len(a[1]):
+                        resut_dict = {key_dict[i]: a[1][i]
+                                      for i, _ in enumerate(a[1])}
+                        print(resut_dict)
+                        results.append(resut_dict)
+        else:
+            print("OCR did not recognize any text in the image.")
 
         return results
     except Exception as e:
