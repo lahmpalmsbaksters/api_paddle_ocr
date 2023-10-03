@@ -126,9 +126,14 @@ async def upload_file(files: List[UploadFile], response: Response):
         # Use asyncio to process images concurrently
         tasks = [process_image(p, ocr_results) for p in path]
         await asyncio.gather(*tasks)
+        my_list = []
+        # Concatenate with a space between elements
+        my_list.append(str(ocr_results[0][0]))
+        my_string = " ".join(my_list)
+        print(my_string)
 
         content = {"code": response.status_code, "message": message,
-                   "file_path": path, "result": ocr_results}
+                   "file_path": path, "result": ocr_results, "results": my_string}
         return content
 
     except Exception as e:
