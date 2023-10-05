@@ -16,7 +16,7 @@ from firebase_admin import db, credentials
 
 
 cred_obj = firebase_admin.credentials.Certificate(
-    "/Users/lahmpalms/Downloads/storageocrresul-firebase-adminsdk-l572v-2e41d26334.json")
+    "key_api/storageocrresul-firebase-adminsdk-l572v-2e41d26334.json")
 default_app = firebase_admin.initialize_app(cred_obj, {
     'databaseURL': 'https://storageocrresul-default-rtdb.asia-southeast1.firebasedatabase.app/'
 })
