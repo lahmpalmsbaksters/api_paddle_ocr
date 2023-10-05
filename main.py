@@ -89,6 +89,42 @@ async def url_process_image(payload):
         print(f"Error processing image: {str(e)}")
 
 
+async def process_ocr_image(image_path):
+    try:
+        cv_img = cv2.imread(image_path)
+        gray_img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2GRAY)
+        bfilter = cv2.bilateralFilter(gray_img, 11, 17, 17)
+        blurred_image = cv2.GaussianBlur(bfilter, (5, 5), 0)
+        _, thresholded_image = cv2.threshold(
+            blurred_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        result = ocr_model.ocr(
+            thresholded_image, cls=False, det=True, rec=True)
+        key_dict = ('result', 'confident')
+        results = []
+        if result is not None:
+
+            for res in result:
+                for a in res:
+                    print(a[1])
+                    if len(key_dict) == len(a[1]):
+                        resut_dict = {key_dict[i]: a[1][i]
+                                      for i, _ in enumerate(a[1])}
+                        print(resut_dict)
+                        results.append(resut_dict)
+
+            else:
+                print("OCR did not recognize any text in the image.")
+            if os.path.exists(image_path):
+                os.remove(image_path)
+                print(f"File '{image_path}' has been deleted.")
+            else:
+                print(f"File '{image_path}' does not exist.")
+
+            return results
+    except Exception as e:
+        print(f"Error processing image: {str(e)}")
+
+
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
@@ -156,6 +192,38 @@ async def process_url(url_request: UrlRequest, response: Response):
         print(error_message)
         return {"error": error_message}
 
+
+@app.post("/ocr_file", status_code=200)
+async def process_ocr_file(files: List[UploadFile], response: Response):
+    try:
+        upload_directory = "upload_images"
+        os.makedirs(upload_directory, exist_ok=True)
+        path = []
+        # Process each file without explicit sorting
+        for index, file in enumerate(files):
+            if file.filename.split('.')[-1] not in ['png', 'jpg', 'jpeg']:
+                response.status_code = status.HTTP_404_NOT_FOUND
+                message = "Only png, jpg, and jpeg files are allowed"
+            else:
+                file_name = f"{index}_{file.filename.split('.')[-1]}"
+                file_path = os.path.join(upload_directory, file_name)
+                path.append(file_path)
+                with open(file_path, "wb") as image_file:
+                    shutil.copyfileobj(file.file, image_file)
+                response.status_code = status.HTTP_201_CREATED
+                message = "Image uploaded and saved successfully"
+        for p in path:
+            ocr_results = await process_ocr_image(p)
+        content = {
+            "code": response.status_code,
+            "message": "success",
+            "result": ocr_results
+        }
+        return content
+    except Exception as e:
+        error_message = f"Error processing image: {str(e)}"
+        print(error_message)
+        return {"code": status.HTTP_500_INTERNAL_SERVER_ERROR, "error": error_message}
 
 if __name__ == "__main__":
     import uvicorn
