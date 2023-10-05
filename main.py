@@ -11,6 +11,15 @@ import asyncio
 from paddleocr import PaddleOCR
 from pydantic import BaseModel
 import urllib3
+import firebase_admin
+from firebase_admin import db, credentials
+
+
+cred_obj = firebase_admin.credentials.Certificate(
+    "/Users/lahmpalms/Downloads/storageocrresul-firebase-adminsdk-l572v-2e41d26334.json")
+default_app = firebase_admin.initialize_app(cred_obj, {
+    'databaseURL': 'https://storageocrresul-default-rtdb.asia-southeast1.firebasedatabase.app/'
+})
 
 
 class UrlRequest(BaseModel):
@@ -195,6 +204,23 @@ async def process_url(url_request: UrlRequest, response: Response):
 
 @app.post("/ocr_file", status_code=200)
 async def process_ocr_file(files: List[UploadFile], response: Response):
+    refdb = db.reference("/")
+    refdb.set({
+        "ocr":
+        {
+            "ocr_results": -1
+        }
+    })
+
+    refdb = db.reference("/ocr/ocr_results")
+    # import json
+    # with open("books.json", "r") as f:
+    #     file_contents = json.load(f)
+    #     print(type(file_contents))
+    #     print(file_contents)
+
+    # for key, value in file_contents.items():
+    #     refdb.push().set(value)
     try:
         upload_directory = "upload_images"
         os.makedirs(upload_directory, exist_ok=True)
@@ -214,6 +240,7 @@ async def process_ocr_file(files: List[UploadFile], response: Response):
                 message = "Image uploaded and saved successfully"
         for p in path:
             ocr_results = await process_ocr_image(p)
+        refdb.push().set(ocr_results)
         content = {
             "code": response.status_code,
             "message": "success",
