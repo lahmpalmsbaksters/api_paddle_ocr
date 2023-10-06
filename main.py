@@ -241,7 +241,7 @@ async def process_ocr_file(files: List[UploadFile], response: Response):
                 response.status_code = status.HTTP_201_CREATED
                 message = "Image uploaded and saved successfully"
         for p in path:
-            ocr_results = await process_ocr_image(p)
+            ocr_results = process_ocr_image(p)
         none_ocr = {
             "result": "",
             "confident": 0,
