@@ -14,6 +14,7 @@ import urllib3
 import firebase_admin
 from firebase_admin import db, credentials
 from uuid_extensions import uuid7, uuid7str
+import datetime
 
 
 cred_obj = firebase_admin.credentials.Certificate(
@@ -109,18 +110,24 @@ async def process_ocr_image(image_path):
             blurred_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         result = ocr_model.ocr(
             thresholded_image, cls=False, det=True, rec=True)
-        key_dict = ('result', 'confident')
+        key_dict = ('result', 'confident', 'time')
         results = []
+        record_datetime = datetime.datetime.now()
+        record_datetime_str = record_datetime.strftime("%Y-%m-%d %H:%M:%S")
         if result is not None:
-
             for res in result:
                 for a in res:
-                    print(a[1])
-                    if len(key_dict) == len(a[1]):
-                        resut_dict = {key_dict[i]: a[1][i]
-                                      for i, _ in enumerate(a[1])}
-                        print(resut_dict)
-                        results.append(resut_dict)
+                    print('a[1]', a[1])
+                    resut_dict = {key_dict[i]: a[1][i]
+                                  for i, _ in enumerate(a[1])}
+                    resut_dict["time_stamp"] = record_datetime_str
+                    results.append(resut_dict)
+                    print('resut_dict', resut_dict)
+                    # if len(key_dict) == len(a[1]):
+                    #     resut_dict = {key_dict[i]: a[1][i]
+                    #                   for i, _ in enumerate(a[1])}
+                    #     print('resut_dict', resut_dict)
+                    #     results.append(resut_dict)
 
             else:
                 print("OCR did not recognize any text in the image.")
@@ -214,6 +221,8 @@ async def process_ocr_file(files: List[UploadFile], response: Response):
     # })
 
     refdb = db.reference("/ocr/ocr_results")
+    record_datetime = datetime.datetime.now()
+    record_datetime_str = record_datetime.strftime("%Y-%m-%d %H:%M:%S")
     try:
         upload_directory = "upload_images"
         os.makedirs(upload_directory, exist_ok=True)
@@ -233,9 +242,16 @@ async def process_ocr_file(files: List[UploadFile], response: Response):
                 message = "Image uploaded and saved successfully"
         for p in path:
             ocr_results = await process_ocr_image(p)
-        refdb.child(uuid7str()).set(ocr_results)
-        refdb.child(f'timestamp_{uuid7str()}').set('1123123')
-        
+        none_ocr = {
+            "result": "",
+            "confident": 0,
+            "time_stamp": record_datetime_str
+        }
+        if ocr_results:
+            refdb.child(f'{record_datetime_str}_{uuid7str()}').set(ocr_results)
+        else:
+            refdb.child(f'{record_datetime_str}_{uuid7str()}').set(none_ocr)
+
         content = {
             "code": response.status_code,
             "message": "success",
