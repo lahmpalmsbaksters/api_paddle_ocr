@@ -236,8 +236,8 @@ async def process_ocr_file(files: List[UploadFile], response: Response):
                 file_name = f"{index}_{file.filename.split('.')[-1]}"
                 file_path = os.path.join(upload_directory, file_name)
                 path.append(file_path)
-                async with open(file_path, "wb") as image_file:
-                    await shutil.copyfileobj(file.file, image_file)
+                with open(file_path, "wb") as image_file:
+                    shutil.copyfileobj(file.file, image_file)
                 response.status_code = status.HTTP_201_CREATED
                 message = "Image uploaded and saved successfully"
         for p in path:
