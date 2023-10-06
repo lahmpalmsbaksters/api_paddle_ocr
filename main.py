@@ -129,8 +129,6 @@ async def process_ocr_image(image_path):
                     #     print('resut_dict', resut_dict)
                     #     results.append(resut_dict)
 
-            else:
-                print("OCR did not recognize any text in the image.")
             if os.path.exists(image_path):
                 os.remove(image_path)
                 print(f"File '{image_path}' has been deleted.")
@@ -241,7 +239,7 @@ async def process_ocr_file(files: List[UploadFile], response: Response):
                 response.status_code = status.HTTP_201_CREATED
                 message = "Image uploaded and saved successfully"
         for p in path:
-            ocr_results = process_ocr_image(p)
+            ocr_results = await process_ocr_image(p)
         none_ocr = {
             "result": "",
             "confident": 0,
