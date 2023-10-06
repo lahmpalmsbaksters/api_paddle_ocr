@@ -15,6 +15,7 @@ import firebase_admin
 from firebase_admin import db, credentials
 from uuid_extensions import uuid7, uuid7str
 import datetime
+import json
 
 
 cred_obj = firebase_admin.credentials.Certificate(
@@ -248,7 +249,7 @@ async def process_ocr_file(files: List[UploadFile], response: Response):
         if ocr_results:
             refdb.child(f'{record_datetime_str}_{uuid7str()}').set(ocr_results)
         else:
-            refdb.child(f'{record_datetime_str}_{uuid7str()}').set(none_ocr)
+            refdb.child(f'{record_datetime_str}_{uuid7str()}').set(json.dumps(none_ocr, indent = 4) )
 
         content = {
             "code": response.status_code,
