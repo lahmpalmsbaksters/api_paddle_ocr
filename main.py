@@ -52,12 +52,39 @@ async def process_image(image_path, results):
         _, thresholded_image = cv2.threshold(
             blurred_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         result = ocr_model.ocr(thresholded_image, cls=False)
-        if result and result[0] and result[0][0] and result[0][0][1] and result[0][0][1][0]:
+        print("result", result)
+        if result is not None and result[0] and result[0][0] and result[0][0][1] and result[0][0][1][0]:
             ocr_text = result[0][0][1]
         else:
             ocr_text = ["No text found", "No confidence rates"]
 
         results.append(ocr_text)
+
+        key_dict = ('result', 'confident', 'time')
+        new_results = []
+        record_datetime = datetime.datetime.now()
+        record_datetime_str = record_datetime.strftime("%Y-%m-%d %H:%M:%S")
+        if result is not None:
+            for res in result:
+                for a in res:
+                    print('a[1]', a[1])
+                    resut_dict = {key_dict[i]: a[1][i]
+                                  for i, _ in enumerate(a[1])}
+                    resut_dict["time_stamp"] = record_datetime_str
+                    new_results.append(resut_dict)
+                    print('resut_dict', resut_dict)
+        print('new_results', new_results)
+        refdb = db.reference("/")
+        refdb = db.reference("/ocr/mobile_ocr_results")
+        none_ocr = [{
+            "result": "",
+            "confident": 0,
+            "time_stamp": record_datetime_str
+        }]
+        if results:
+            refdb.child(f'{record_datetime_str}_{uuid7str()}').set(new_results)
+        else:
+            refdb.child(f'{record_datetime_str}_{uuid7str()}').set(none_ocr)
 
         if os.path.exists(image_path):
             os.remove(image_path)
@@ -65,6 +92,14 @@ async def process_image(image_path, results):
         else:
             print(f"File '{image_path}' does not exist.")
     except Exception as e:
+        refdb = db.reference("/")
+        refdb = db.reference("/ocr/mobile_ocr_results")
+        none_ocr = [{
+            "result": "",
+            "confident": 0,
+            "time_stamp": record_datetime_str
+        }]
+        refdb.child(f'{record_datetime_str}_{uuid7str()}').set(none_ocr)
         print(f"Error processing image: {str(e)}")
 
 
