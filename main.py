@@ -241,15 +241,15 @@ async def process_ocr_file(files: List[UploadFile], response: Response):
                 message = "Image uploaded and saved successfully"
         for p in path:
             ocr_results = await process_ocr_image(p)
-        none_ocr = {
+        none_ocr = [{
             "result": "",
             "confident": 0,
             "time_stamp": record_datetime_str
-        }
+        }]
         if ocr_results:
             refdb.child(f'{record_datetime_str}_{uuid7str()}').set(ocr_results)
         else:
-            refdb.child(f'{record_datetime_str}_{uuid7str()}').set(json.dumps(none_ocr, indent = 4) )
+            refdb.child(f'{record_datetime_str}_{uuid7str()}').set(none_ocr)
 
         content = {
             "code": response.status_code,
