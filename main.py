@@ -1,7 +1,6 @@
 from typing import Annotated
 from typing import List
-
-from fastapi import FastAPI, File, Form, UploadFile, status, Response
+from fastapi import FastAPI, File, Form, UploadFile, status, Response, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import numpy as np
 import cv2
@@ -16,6 +15,8 @@ from firebase_admin import db, credentials
 from uuid_extensions import uuid7, uuid7str
 import datetime
 import json
+from pymongo import MongoClient
+from bson.objectid import ObjectId
 
 
 cred_obj = firebase_admin.credentials.Certificate(
@@ -24,6 +25,14 @@ default_app = firebase_admin.initialize_app(cred_obj, {
     'databaseURL': 'https://storageocrresul-default-rtdb.asia-southeast1.firebasedatabase.app/'
 })
 
+# MongoDB connection setup
+myclient = MongoClient("mongodb://admin:islabac123@18.143.76.245:27017/")
+mydb = myclient["people_detect_log"]
+mycol = mydb["log"]
+
+class LogItem(BaseModel):
+    status: str
+    time: str
 
 class UrlRequest(BaseModel):
     url: str
@@ -297,6 +306,16 @@ async def process_ocr_file(files: List[UploadFile], response: Response):
         print(error_message)
         return {"code": status.HTTP_500_INTERNAL_SERVER_ERROR, "error": error_message}
 
+
+@app.get("/logs/{log_id}", response_model=LogItem)
+async def read_log(log_id: str):
+    print (log_id)
+    log_data = mycol.find_one({"_id": ObjectId(log_id)})
+    if log_data is None:
+        raise HTTPException(status_code=404, detail="Log not found")
+    return LogItem(**log_data)
+
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=5000)
